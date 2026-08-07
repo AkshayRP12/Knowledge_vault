@@ -1,0 +1,173 @@
+================================================================================
+MASTER PROJECT GUIDE — ARCHITECTURE, SWAGGER, BREAKPOINTS & CODE WALKTHROUGH
+================================================================================
+
+--------------------------------------------------------------------------------
+1. INTERACTIVE SWAGGER UI (HOW TO VIEW & TEST APIS)
+--------------------------------------------------------------------------------
+We have enabled Swagger UI on your backend API!
+
+How to Open:
+1. Make sure your API is running (dotnet run in KnowledgeVault.API).
+2. Open your browser and go to: http://localhost:5000/swagger
+
+What You Will See:
+An interactive UI displaying all 17 API endpoints grouped by Controller:
+- Auth (/api/auth/login, /api/auth/register)
+- Articles (/api/articles, /api/articles/pending, /api/articles/{id}, /api/articles/{id}/approve)
+- Categories (/api/categories)
+- Comments (/api/articles/{id}/comments)
+- Likes (/api/articles/{id}/like)
+- Bookmarks (/api/bookmarks)
+- Users (/api/users)
+
+How to Test APIs with JWT in Swagger:
+1. Click POST /api/auth/login -> click "Try it out" -> enter admin@vault.com and Admin@123 -> click Execute.
+2. Copy the token string from the JSON response.
+3. Click the "Authorize" button at the top right of the Swagger page.
+4. Type "Bearer YOUR_TOKEN_HERE" and click Authorize.
+5. Now you can test any protected endpoint (like GET /api/articles/pending) directly from Swagger!
+
+
+--------------------------------------------------------------------------------
+2. API BREAKPOINTS (HOW TO DEBUG STEP-BY-STEP)
+--------------------------------------------------------------------------------
+Setting breakpoints allows you to freeze execution in C# and inspect incoming HTTP requests line-by-line.
+
+Step-by-Step in VS Code / Visual Studio:
+1. Open z:\excel\KnowledgeVault.API\Controllers\ArticlesController.cs.
+2. Find line 80 inside the Create method:
+   var userId = GetUserId();
+3. Click in the left margin next to line 80 to set a Red Breakpoint Dot.
+4. Press F5 (Start Debugging).
+5. Open your React app or Swagger and submit a new article.
+6. Execution will stop immediately on line 80 in VS Code!
+7. Use F10 (Step Over) to execute line-by-line and hover over variables (req.Title, userId, article) to inspect live memory values.
+
+
+--------------------------------------------------------------------------------
+3. DATABASE NORMALIZATION (1NF, 2NF, 3NF)
+--------------------------------------------------------------------------------
+Your SQL Server database 'KnowledgeVaultDb' strictly adheres to 3rd Normal Form (3NF):
+
+First Normal Form (1NF) — Atomic Values:
+- Every table column contains single, indivisible values (no comma-separated strings inside cells).
+- Every table has a Primary Key (Id).
+
+Second Normal Form (2NF) — No Partial Dependencies:
+- All non-key attributes depend on the entire Primary Key.
+- In the ArticleTags junction table, ArticleId + TagId form a composite primary key, ensuring tags are normalized into a separate Tags table rather than duplicated.
+
+Third Normal Form (3NF) — No Transitive Dependencies:
+- Non-key attributes depend ONLY on the primary key, not on other non-key attributes.
+- Author names and Category names are stored only once in Users and Categories. Articles references them via Foreign Keys (AuthorId, CategoryId).
+
+
+--------------------------------------------------------------------------------
+4. ENTITY FRAMEWORK CORE (EF CORE) CONCEPTS
+--------------------------------------------------------------------------------
+EF Core is an Object-Relational Mapper (ORM). It translates C# objects into SQL database queries automatically.
+
+Key EF Core Terms:
+- DbContext (AppDbContext.cs): Represents a session with the database. Holds DbSet<T> properties.
+- DbSet<T>: Represents a database table as a C# collection (e.g. DbSet<Article> Articles).
+- LINQ Queries: C# syntax converted into SQL.
+  Example: _db.Articles.Where(a => a.Status == "Approved").ToListAsync()
+  Translates to: SELECT * FROM Articles WHERE Status = 'Approved'
+- Include() & ThenInclude(): Performs SQL JOIN operations to load related data.
+  Example: _db.Articles.Include(a => a.Author).Include(a => a.Category)
+  Performs: LEFT JOIN Users ON ... LEFT JOIN Categories ON ...
+
+
+--------------------------------------------------------------------------------
+5. OBJECT-ORIENTED PROGRAMMING (OOP) IN C#
+--------------------------------------------------------------------------------
+- Encapsulation: C# Entity Models (User.cs, Article.cs) use private backing fields with public { get; set; } properties.
+- Inheritance: All API controllers inherit from ControllerBase (public class ArticlesController : ControllerBase).
+- Polymorphism: Overriding EF Core methods like protected override void OnModelCreating(ModelBuilder mb).
+- Abstraction: Interfaces and middleware abstracting complex tasks (IConfiguration, DbContext, TokenService).
+- Dependency Injection (DI): Injecting services into controllers via constructor parameters:
+  public AuthController(AppDbContext db, TokenService tokenService).
+
+
+--------------------------------------------------------------------------------
+6. DETAILED FILE-BY-FILE CODE WALKTHROUGH
+--------------------------------------------------------------------------------
+
+BACKEND FILES (KnowledgeVault.API):
+
+1. Program.cs (App Startup & Middleware Pipeline)
+   - Framework: ASP.NET Core Web Application Builder (WebApplication.CreateBuilder).
+   - Key Methods:
+     AddDbContext<AppDbContext>(): Configures SQL Server database connection.
+     AddAuthentication().AddJwtBearer(): Registers JWT token validation middleware.
+     AddCors(): Configures Cross-Origin Resource Sharing for React.
+     AddSwaggerGen(): Generates Swagger OpenAPI documentation.
+     db.Database.EnsureCreated(): Automatically creates SQL tables & seeds data on startup.
+
+2. Data/AppDbContext.cs (Entity Framework DbContext)
+   - Framework: EF Core DbContext.
+   - Key Methods:
+     OnModelCreating(ModelBuilder mb): Configures composite keys (ArticleTag), unique indexes (Email, Name), and seed data (SeedData()).
+     DbSet<Article>, DbSet<User>, DbSet<Category>: Exposes tables to C# LINQ queries.
+
+3. Services/TokenService.cs (JWT Generator)
+   - Framework: System.IdentityModel.Tokens.Jwt, Microsoft.IdentityModel.Tokens.
+   - Key Methods:
+     GenerateToken(User user): Encodes user claims (NameIdentifier, Name, Email, Role) and signs the JWT using SymmetricSecurityKey with HmacSha256.
+
+4. Controllers/AuthController.cs (Login & Registration)
+   - Framework: [ApiController], [Route("api/[controller]")], BCrypt hashing.
+   - Key Methods:
+     Register(RegisterRequest req): Hashes password with BCrypt.Net.BCrypt.HashPassword() and saves user to database.
+     Login(LoginRequest req): Validates email, verifies password hash with BCrypt.Net.BCrypt.Verify(), and returns signed JWT token.
+
+5. Controllers/ArticlesController.cs (Article Management & Approval)
+   - Framework: ASP.NET Core Authorization ([Authorize], [Authorize(Roles = "Admin")]).
+   - Key Methods:
+     GetAll(): LINQ query fetching all Approved articles with author, category, tags, and like count.
+     GetPending(): Admin-only endpoint returning articles waiting for approval.
+     Create(CreateArticleRequest req): Creates article, sets Status = 'Pending' for employees, and associates tags in ArticleTags table.
+     Approve(int id, ApproveRequest req): Admin-only endpoint updating article status to Approved or Rejected.
+
+6. Controllers/OtherControllers.cs (Categories, Comments, Likes, Bookmarks, Users)
+   - Key Methods:
+     CategoriesController.Create(): Admin endpoint to create new categories.
+     CommentsController.Create(): Posts a new comment associated with an article ID.
+     LikesController.Toggle(): Toggles a row in Likes table (Inserts if not liked, Deletes if already liked).
+     BookmarksController.Toggle(): Toggles a row in Bookmarks table for saved articles.
+
+
+FRONTEND FILES (knowledge-vault-ui):
+
+1. src/context/AuthContext.jsx (Global State)
+   - Framework: React Context API (createContext, useContext, useState, useEffect).
+   - Function: Stores user information and token in state and localStorage. Provides login(), logout(), and isAdmin flag to the entire app.
+
+2. src/api/index.js (Axios API Client)
+   - Framework: Axios Interceptors (axios.create()).
+   - Function: Adds Authorization: Bearer <token> header to all outgoing requests. Redirects 401 Unauthorized responses cleanly.
+
+3. src/components/ProtectedRoute.jsx (Route Protection)
+   - Framework: React Router Navigate.
+   - Function: Blocks unauthorized users from viewing private pages and blocks non-admins from the /admin route.
+
+4. src/pages/LoginPage.jsx (Authentication UI)
+   - Framework: React State (useState), React Router useNavigate.
+   - Function: Tabbed interface for Sign In / Registration with interactive demo credential shortcuts.
+
+5. src/pages/DashboardPage.jsx (Home Feed)
+   - Framework: React Lifecycle (useEffect), Array filtering.
+   - Function: Displays article cards with real-time text search, category dropdown filter, and tag chips filter.
+
+6. src/pages/ArticleDetailPage.jsx (Article Reader)
+   - Framework: React Router useParams, custom CSS prose.
+   - Function: Displays article content, calculated reading time, live like toggle, bookmark toggle, and comment section.
+
+7. src/pages/ArticleFormPage.jsx (Article Authoring)
+   - Framework: Form state management, tag chip keyboard handlers.
+   - Function: Form for creating/editing articles with category selection and tag chips input.
+
+8. src/pages/AdminPanelPage.jsx (Moderation Dashboard)
+   - Framework: Tabbed admin interface.
+   - Function: Allows Admins to Approve/Reject pending employee submissions, create/delete categories, and manage registered users.
