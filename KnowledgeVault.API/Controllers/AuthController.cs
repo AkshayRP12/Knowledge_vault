@@ -1,9 +1,7 @@
 using KnowledgeVault.API.Data;
 using KnowledgeVault.API.DTOs;
-using KnowledgeVault.API.Models;
 using KnowledgeVault.API.Services;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace KnowledgeVault.API.Controllers
 {
@@ -11,10 +9,10 @@ namespace KnowledgeVault.API.Controllers
     [Route("api/[controller]")]
     public class AuthController : ControllerBase
     {
-        private readonly AppDbContext _db;
+        private readonly DbService _db;
         private readonly TokenService _tokenService;
 
-        public AuthController(AppDbContext db, TokenService tokenService)
+        public AuthController(DbService db, TokenService tokenService)
         {
             _db = db;
             _tokenService = tokenService;
@@ -23,19 +21,14 @@ namespace KnowledgeVault.API.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterRequest req)
         {
-            if (await _db.Users.AnyAsync(u => u.Email == req.Email))
+            var existingUser = await _db.GetUserByEmailAsync(req.Email);
+            if (existingUser != null)
                 return BadRequest(new { message = "Email already registered" });
 
-            var user = new User
-            {
-                Username = req.Username,
-                Email = req.Email,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password),
-                Role = string.Equals(req.Role, "Admin", StringComparison.OrdinalIgnoreCase) ? "Admin" : "Employee"
-            };
+            string role = string.Equals(req.Role, "Admin", StringComparison.OrdinalIgnoreCase) ? "Admin" : "Employee";
+            string passwordHash = BCrypt.Net.BCrypt.HashPassword(req.Password);
 
-            _db.Users.Add(user);
-            await _db.SaveChangesAsync();
+            await _db.CreateUserAsync(req.Username, req.Email, passwordHash, role);
 
             return Ok(new { message = "Registration successful" });
         }
@@ -43,7 +36,7 @@ namespace KnowledgeVault.API.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest req)
         {
-            var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == req.Email);
+            var user = await _db.GetUserByEmailAsync(req.Email);
             if (user == null)
                 return Unauthorized(new { message = "Invalid email or password" });
 
@@ -57,7 +50,7 @@ namespace KnowledgeVault.API.Controllers
                 isValidPassword = false;
             }
 
-            // Fallback check for demo reliability
+            // Demo fallback check
             if (!isValidPassword)
             {
                 if (user.PasswordHash == req.Password ||
@@ -65,9 +58,8 @@ namespace KnowledgeVault.API.Controllers
                     (req.Email == "employee@vault.com" && req.Password == "Employee@123"))
                 {
                     isValidPassword = true;
-                    // Update hash in database so future checks pass
-                    user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password);
-                    await _db.SaveChangesAsync();
+                    string newHash = BCrypt.Net.BCrypt.HashPassword(req.Password);
+                    await _db.UpdateUserPasswordHashAsync(user.Id, newHash);
                 }
             }
 

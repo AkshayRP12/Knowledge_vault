@@ -2,26 +2,13 @@ using System.Text;
 using KnowledgeVault.API.Data;
 using KnowledgeVault.API.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Connect to Microsoft SQL Server
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-
-builder.Services.AddDbContext<AppDbContext>(options =>
-{
-    if (!string.IsNullOrEmpty(connectionString))
-    {
-        options.UseSqlServer(connectionString);
-    }
-    else
-    {
-        options.UseInMemoryDatabase("KnowledgeVaultDb");
-    }
-});
+// Register DbService (Raw Inline T-SQL with ADO.NET SqlClient)
+builder.Services.AddSingleton<DbService>();
 
 // Register TokenService
 builder.Services.AddScoped<TokenService>();
@@ -50,7 +37,7 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Knowledge Vault API", Version = "v1" });
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Knowledge Vault API (Inline T-SQL)", Version = "v1" });
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Description = "JWT Authorization header using the Bearer scheme. Enter 'Bearer' [space] and then your token.",
@@ -92,13 +79,6 @@ app.UseSwaggerUI(c =>
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "Knowledge Vault API v1");
     c.RoutePrefix = "swagger";
 });
-
-// Ensure Database & Seed Data Created automatically on startup
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.EnsureCreated();
-}
 
 app.UseCors("AllowReactApp");
 
