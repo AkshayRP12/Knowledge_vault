@@ -11,12 +11,15 @@ export default function ArticleCard({ article, onBookmarkToggle, isBookmarked })
   const formatDate = (dateStr) =>
     new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 
-  const getCleanExcerpt = (html = '') => {
+  const getHtmlExcerpt = (html = '') => {
     if (!html) return ''
+    // Get plain text length to truncate correctly
     const tmp = document.createElement('div')
     tmp.innerHTML = html
     const plain = tmp.textContent || tmp.innerText || ''
-    return plain.length > 130 ? plain.substring(0, 130) + '...' : plain
+    if (plain.length <= 150) return html
+    // Truncate plain text to 150 chars, return as plain with ellipsis
+    return plain.substring(0, 150) + '...'
   }
 
   return (
@@ -49,7 +52,10 @@ export default function ArticleCard({ article, onBookmarkToggle, isBookmarked })
         </div>
       )}
 
-      <p className="article-excerpt">{getCleanExcerpt(article.content || article.excerpt)}</p>
+      <div
+        className="article-excerpt prose"
+        dangerouslySetInnerHTML={{ __html: getHtmlExcerpt(article.content || article.excerpt) }}
+      />
 
       <div className="article-card-footer">
         <div className="article-meta">
