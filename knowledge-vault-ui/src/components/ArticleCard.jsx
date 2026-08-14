@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { FiHeart, FiBookmark, FiEye, FiUser, FiCalendar, FiTag } from 'react-icons/fi'
+import { FiHeart, FiBookmark, FiCalendar, FiTag } from 'react-icons/fi'
 
 export default function ArticleCard({ article, onBookmarkToggle, isBookmarked }) {
   const statusColors = {
@@ -10,6 +10,14 @@ export default function ArticleCard({ article, onBookmarkToggle, isBookmarked })
 
   const formatDate = (dateStr) =>
     new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+
+  const getCleanExcerpt = (html = '') => {
+    if (!html) return ''
+    const tmp = document.createElement('div')
+    tmp.innerHTML = html
+    const plain = tmp.textContent || tmp.innerText || ''
+    return plain.length > 130 ? plain.substring(0, 130) + '...' : plain
+  }
 
   return (
     <div className="article-card card">
@@ -41,7 +49,7 @@ export default function ArticleCard({ article, onBookmarkToggle, isBookmarked })
         </div>
       )}
 
-      <p className="article-excerpt">{article.excerpt || article.content?.substring(0, 130) + '...'}</p>
+      <p className="article-excerpt">{getCleanExcerpt(article.content || article.excerpt)}</p>
 
       <div className="article-card-footer">
         <div className="article-meta">

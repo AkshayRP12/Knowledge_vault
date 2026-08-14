@@ -1,3 +1,4 @@
+using System.Data;
 using Microsoft.Data.SqlClient;
 
 namespace KnowledgeVault.API.Models
@@ -11,6 +12,7 @@ namespace KnowledgeVault.API.Models
 
         public static async Task<List<string>> GetTagsForArticleAsync(SqlConnection conn, int articleId)
         {
+            if (conn.State != ConnectionState.Open) await conn.OpenAsync();
             var sql = @"SELECT t.Name 
                         FROM ArticleTags at 
                         INNER JOIN Tags t ON at.TagId = t.Id 
@@ -26,6 +28,7 @@ namespace KnowledgeVault.API.Models
         public static async Task SaveArticleTagsAsync(SqlConnection conn, int articleId, List<string> tags)
         {
             if (tags == null || !tags.Any()) return;
+            if (conn.State != ConnectionState.Open) await conn.OpenAsync();
 
             foreach (var tagName in tags.Select(t => t.Trim()).Where(t => !string.IsNullOrEmpty(t)))
             {

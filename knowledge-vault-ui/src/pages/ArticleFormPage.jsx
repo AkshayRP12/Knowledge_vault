@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { articlesApi, categoriesApi } from '../api'
-import { FiSave, FiArrowLeft, FiTag, FiAlertCircle, FiBold, FiItalic } from 'react-icons/fi'
+import { FiSave, FiArrowLeft, FiAlertCircle, FiBold, FiItalic } from 'react-icons/fi'
 import toast from 'react-hot-toast'
 import './ArticleFormPage.css'
 
@@ -9,10 +9,12 @@ export default function ArticleFormPage() {
   const { id } = useParams()
   const isEdit = Boolean(id)
   const navigate = useNavigate()
-  const textareaRef = useRef(null)
+  const editorRef = useRef(null)
 
   const [categories, setCategories] = useState([])
-  const [form, setForm] = useState({ title: '', content: '', categoryId: '', tags: [] })
+  const [title, setTitle] = useState('')
+  const [categoryId, setCategoryId] = useState('')
+  const [tags, setTags] = useState([])
   const [tagInput, setTagInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [fetching, setFetching] = useState(isEdit)
@@ -23,23 +25,21 @@ export default function ArticleFormPage() {
     if (isEdit) {
       articlesApi.getById(id).then(res => {
         const a = res.data
-        setForm({
-          title: a.title,
-          content: a.content,
-          categoryId: a.categoryId || '',
-          tags: a.tags || []
-        })
+        setTitle(a.title)
+        setCategoryId(a.categoryId || '')
+        setTags(a.tags || [])
+        if (editorRef.current) {
+          editorRef.current.innerHTML = a.content || ''
+        }
       }).catch(() => toast.error('Failed to load article'))
       .finally(() => setFetching(false))
     }
   }, [id, isEdit])
 
-  const handleChange = (e) => setForm(f => ({ ...f, [e.target.name]: e.target.value }))
-
   const handleAddTag = (tag) => {
     const trimmed = tag.trim()
-    if (trimmed && !form.tags.includes(trimmed)) {
-      setForm(f => ({ ...f, tags: [...f.tags, trimmed] }))
+    if (trimmed && !tags.includes(trimmed)) {
+      setTags(t => [...t, trimmed])
     }
     setTagInput('')
   }
@@ -52,43 +52,30 @@ export default function ArticleFormPage() {
   }
 
   const handleRemoveTag = (tagToRemove) => {
-    setForm(f => ({ ...f, tags: f.tags.filter(t => t !== tagToRemove) }))
+    setTags(t => t.filter(x => x !== tagToRemove))
   }
 
-  // Format Helper for Bold & Italic
-  const applyFormat = (prefix, suffix) => {
-    const textarea = textareaRef.current
-    if (!textarea) return
-
-    const start = textarea.selectionStart
-    const end = textarea.selectionEnd
-    const text = textarea.value
-
-    const selectedText = text.substring(start, end) || 'text'
-    const formatted = `${prefix}${selectedText}${suffix}`
-
-    const newContent = text.substring(0, start) + formatted + text.substring(end)
-    setForm(f => ({ ...f, content: newContent }))
-
-    setTimeout(() => {
-      textarea.focus()
-      textarea.setSelectionRange(start + prefix.length, start + prefix.length + selectedText.length)
-    }, 0)
+  // Real WYSIWYG ExecCommand Formatting
+  const handleFormat = (command) => {
+    document.execCommand(command, false, null)
+    if (editorRef.current) editorRef.current.focus()
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!form.title.trim() || !form.content.trim()) {
+    const contentHtml = editorRef.current ? editorRef.current.innerHTML : ''
+
+    if (!title.trim() || !contentHtml.trim() || contentHtml === '<br>') {
       return toast.error('Title and Content are required')
     }
 
     setLoading(true)
     try {
       const payload = {
-        title: form.title,
-        content: form.content,
-        categoryId: form.categoryId ? Number(form.categoryId) : null,
-        tags: form.tags
+        title,
+        content: contentHtml,
+        categoryId: categoryId ? Number(categoryId) : null,
+        tags
       }
 
       if (isEdit) {
@@ -130,18 +117,17 @@ export default function ArticleFormPage() {
           <div className="form-group">
             <label className="form-label">Article Title *</label>
             <input
-              name="title"
               className="input"
               placeholder="e.g. Getting Started with Azure App Service"
-              value={form.title}
-              onChange={handleChange}
+              value={title}
+              onChange={e => setTitle(e.target.value)}
               required
             />
           </div>
 
           <div className="form-group">
             <label className="form-label">Category</label>
-            <select name="categoryId" className="select" value={form.categoryId} onChange={handleChange}>
+            <select className="select" value={categoryId} onChange={e => setCategoryId(e.target.value)}>
               <option value="">Select Category...</option>
               {categories.map(c => (
                 <option key={c.id} value={c.id}>{c.name}</option>
@@ -152,41 +138,49 @@ export default function ArticleFormPage() {
           <div className="form-group">
             <div className="flex justify-between items-center mb-1">
               <label className="form-label">Content *</label>
-              {/* Formatting Toolbar */}
+              {/* WYSIWYG Formatting Toolbar */}
               <div className="format-toolbar flex gap-1">
                 <button
                   type="button"
-                  className="btn btn-ghost btn-sm"
-                  title="Format Bold"
-                  onClick={() => applyFormat('**', '**')}
+                  className="btn btn-secondary btn-sm"
+                  title="Make Selected Text Bold"
+                  onMouseDown={(e) => { e.preventDefault(); handleFormat('bold'); }}
                 >
                   <FiBold size={15} /> <strong>Bold</strong>
                 </button>
                 <button
                   type="button"
-                  className="btn btn-ghost btn-sm"
-                  title="Format Italic"
-                  onClick={() => applyFormat('*', '*')}
+                  className="btn btn-secondary btn-sm"
+                  title="Make Selected Text Italic"
+                  onMouseDown={(e) => { e.preventDefault(); handleFormat('italic'); }}
                 >
                   <FiItalic size={15} /> <em>Italic</em>
                 </button>
               </div>
             </div>
-            <textarea
-              ref={textareaRef}
-              name="content"
-              className="textarea article-textarea"
-              placeholder="Write your article content here... Select text and click Bold or Italic to format!"
-              value={form.content}
-              onChange={handleChange}
-              required
+            
+            {/* Visual ContentEditable Rich Text Editor */}
+            <div
+              ref={editorRef}
+              contentEditable
+              className="textarea article-wysiwyg-editor"
+              placeholder="Write your article content here... Select any text and click Bold or Italic!"
+              style={{
+                minHeight: '220px',
+                padding: '14px',
+                outline: 'none',
+                overflowY: 'auto',
+                backgroundColor: 'var(--color-bg-card)',
+                color: 'var(--text-primary)',
+                lineHeight: '1.6'
+              }}
             />
           </div>
 
           <div className="form-group">
             <label className="form-label">Tags</label>
             <div className="tag-input-container">
-              {form.tags.map(t => (
+              {tags.map(t => (
                 <span key={t} className="tag-chip">
                   {t}
                   <button type="button" onClick={() => handleRemoveTag(t)}>×</button>
@@ -202,7 +196,7 @@ export default function ArticleFormPage() {
             </div>
             <div className="tag-suggestions">
               {['Azure', 'React', 'SQL', 'HR', '.NET', 'Docker', 'API'].map(t => (
-                !form.tags.includes(t) && (
+                !tags.includes(t) && (
                   <button key={t} type="button" className="tag-suggestion-btn" onClick={() => handleAddTag(t)}>
                     + {t}
                   </button>

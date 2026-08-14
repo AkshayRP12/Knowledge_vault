@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { articlesApi, likesApi, bookmarksApi } from '../api'
 import { useAuth } from '../context/AuthContext'
 import CommentSection from '../components/CommentSection'
-import { FiThumbsUp, FiBookmark, FiEdit, FiTrash2, FiClock, FiCalendar, FiUser, FiArrowLeft, FiShield } from 'react-icons/fi'
+import { FiThumbsUp, FiBookmark, FiEdit, FiTrash2, FiClock, FiCalendar, FiUser, FiArrowLeft } from 'react-icons/fi'
 import toast from 'react-hot-toast'
 import './ArticleDetailPage.css'
 
@@ -35,6 +35,14 @@ export default function ArticleDetailPage() {
       navigate('/')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleBack = () => {
+    if (window.history.length > 1 && window.history.state && window.history.state.idx > 0) {
+      navigate(-1)
+    } else {
+      navigate(isAdmin ? '/admin' : '/')
     }
   }
 
@@ -75,22 +83,9 @@ export default function ArticleDetailPage() {
   }
 
   const calculateReadTime = (text = '') => {
-    const words = text.trim().split(/\s+/).length
+    const plainText = text.replace(/<[^>]*>?/gm, '')
+    const words = plainText.trim().split(/\s+/).length
     return Math.max(1, Math.ceil(words / 200))
-  }
-
-  // Simple Rich Text Formatter (Bold & Italic)
-  const renderFormattedContent = (content = '') => {
-    return content.split('\n\n').map((paragraph, idx) => {
-      // Convert **text** to <strong> and *text* to <em>
-      const formatted = paragraph
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*(.*?)\*/g, '<em>$1</em>')
-
-      return (
-        <p key={idx} dangerouslySetInnerHTML={{ __html: formatted }} />
-      )
-    })
   }
 
   if (loading) return <div className="loading-spinner" />
@@ -101,7 +96,7 @@ export default function ArticleDetailPage() {
   return (
     <div className="main-content">
       <div className="container-sm">
-        <button className="btn btn-ghost mb-4" onClick={() => navigate(-1)}>
+        <button className="btn btn-ghost mb-4" onClick={handleBack}>
           <FiArrowLeft size={16} /> Back
         </button>
 
@@ -142,9 +137,11 @@ export default function ArticleDetailPage() {
 
           <div className="divider" />
 
-          <div className="prose article-body">
-            {renderFormattedContent(article.content)}
-          </div>
+          {/* HTML Rich Text Body Rendering */}
+          <div
+            className="prose article-body"
+            dangerouslySetInnerHTML={{ __html: article.content }}
+          />
 
           {article.tags && article.tags.length > 0 && (
             <div className="article-detail-tags">

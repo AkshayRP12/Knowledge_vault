@@ -1,3 +1,4 @@
+using System.Data;
 using KnowledgeVault.API.Models;
 using Microsoft.Data.SqlClient;
 
@@ -35,7 +36,7 @@ namespace KnowledgeVault.API.DTOs
 
         public static async Task<List<UserDto>> FetchAllAsync(SqlConnection conn)
         {
-            await conn.OpenAsync();
+            if (conn.State != ConnectionState.Open) await conn.OpenAsync();
             var sql = "SELECT Id, Username, Email, Role, CreatedAt FROM Users ORDER BY CreatedAt DESC";
             using var cmd = new SqlCommand(sql, conn);
             using var reader = await cmd.ExecuteReaderAsync();
@@ -81,6 +82,7 @@ namespace KnowledgeVault.API.DTOs
     {
         public int Id { get; set; }
         public string Title { get; set; } = string.Empty;
+        public string Content { get; set; } = string.Empty;
         public string? Excerpt { get; set; }
         public string Status { get; set; } = string.Empty;
         public string AuthorName { get; set; } = string.Empty;
@@ -93,7 +95,7 @@ namespace KnowledgeVault.API.DTOs
 
         public static async Task<List<ArticleListDto>> FetchByStatusAsync(SqlConnection conn, string status)
         {
-            await conn.OpenAsync();
+            if (conn.State != ConnectionState.Open) await conn.OpenAsync();
             var sql = @"
                 SELECT a.Id, a.Title, a.Content, a.Status, a.AuthorId, u.Username AS AuthorName, 
                        a.CategoryId, c.Name AS CategoryName, a.CreatedAt,
@@ -116,6 +118,7 @@ namespace KnowledgeVault.API.DTOs
                 {
                     Id = reader.GetInt32(0),
                     Title = reader.GetString(1),
+                    Content = content,
                     Excerpt = content.Length > 130 ? content.Substring(0, 130) + "..." : content,
                     Status = reader.GetString(3),
                     AuthorId = reader.GetInt32(4),
@@ -141,7 +144,6 @@ namespace KnowledgeVault.API.DTOs
 
     public class ArticleDetailDto : ArticleListDto
     {
-        public string Content { get; set; } = string.Empty;
         public bool IsLikedByUser { get; set; }
         public bool IsBookmarkedByUser { get; set; }
         public List<CommentDto> Comments { get; set; } = new();
@@ -149,7 +151,7 @@ namespace KnowledgeVault.API.DTOs
 
         public static async Task<ArticleDetailDto?> FetchByIdAsync(SqlConnection conn, int id, int currentUserId)
         {
-            await conn.OpenAsync();
+            if (conn.State != ConnectionState.Open) await conn.OpenAsync();
             var sql = @"
                 SELECT a.Id, a.Title, a.Content, a.Status, a.AuthorId, u.Username AS AuthorName, 
                        a.CategoryId, c.Name AS CategoryName, a.CreatedAt, a.UpdatedAt,
@@ -212,7 +214,7 @@ namespace KnowledgeVault.API.DTOs
 
         public static async Task<List<CategoryDto>> FetchAllAsync(SqlConnection conn)
         {
-            await conn.OpenAsync();
+            if (conn.State != ConnectionState.Open) await conn.OpenAsync();
             var sql = "SELECT Id, Name, Description FROM Categories ORDER BY Name";
             using var cmd = new SqlCommand(sql, conn);
             using var reader = await cmd.ExecuteReaderAsync();
@@ -246,6 +248,7 @@ namespace KnowledgeVault.API.DTOs
 
         public static async Task<List<CommentDto>> FetchForArticleAsync(SqlConnection conn, int articleId)
         {
+            if (conn.State != ConnectionState.Open) await conn.OpenAsync();
             var sql = @"SELECT c.Id, c.Content, c.UserId, u.Username AS AuthorName, c.CreatedAt 
                         FROM Comments c 
                         INNER JOIN Users u ON c.UserId = u.Id 
@@ -280,7 +283,7 @@ namespace KnowledgeVault.API.DTOs
 
         public static async Task<List<BookmarkDto>> FetchUserBookmarksAsync(SqlConnection conn, int userId)
         {
-            await conn.OpenAsync();
+            if (conn.State != ConnectionState.Open) await conn.OpenAsync();
             var sql = @"
                 SELECT b.Id AS BookmarkId, b.CreatedAt AS BookmarkDate,
                        a.Id, a.Title, a.Content, a.Status, a.AuthorId, u.Username AS AuthorName, 
@@ -310,6 +313,7 @@ namespace KnowledgeVault.API.DTOs
                     {
                         Id = reader.GetInt32(2),
                         Title = reader.GetString(3),
+                        Content = content,
                         Excerpt = content.Length > 130 ? content.Substring(0, 130) + "..." : content,
                         Status = reader.GetString(5),
                         AuthorId = reader.GetInt32(6),

@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("KnowledgeVault.API")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+595a3b4870f7bafc169f5fb7ca1091b0dea5a870")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a4ea6b84f759007503103ac35375417ada6d2d87")]
 [assembly: System.Reflection.AssemblyProductAttribute("KnowledgeVault.API")]
 [assembly: System.Reflection.AssemblyTitleAttribute("KnowledgeVault.API")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

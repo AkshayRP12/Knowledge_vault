@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { articlesApi, categoriesApi, usersApi } from '../api'
 import { FiShield, FiCheck, FiX, FiTrash2, FiTag, FiUsers, FiFileText, FiPlus } from 'react-icons/fi'
 import toast from 'react-hot-toast'
@@ -134,7 +135,13 @@ export default function AdminPanelPage() {
                       <div key={article.id} className="pending-card card">
                         <div className="pending-card-body">
                           <div>
-                            <h3 className="pending-title">{article.title}</h3>
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="pending-title">
+                                <Link to={`/articles/${article.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                                  {article.title}
+                                </Link>
+                              </h3>
+                            </div>
                             <div className="pending-meta">
                               <span>by <strong>{article.authorName}</strong></span>
                               <span>·</span>
@@ -142,9 +149,18 @@ export default function AdminPanelPage() {
                               <span>·</span>
                               <span>{formatDate(article.createdAt)}</span>
                             </div>
-                            <p className="pending-excerpt">{article.content?.substring(0, 160)}...</p>
+
+                            {/* Render HTML Rich Text Content directly */}
+                            <div
+                              className="pending-excerpt prose"
+                              dangerouslySetInnerHTML={{ __html: article.content || article.excerpt }}
+                              style={{ marginTop: 8, color: 'var(--text-secondary)' }}
+                            />
                           </div>
                           <div className="pending-actions">
+                            <Link to={`/articles/${article.id}`} className="btn btn-secondary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <FiFileText size={14} /> Read Full
+                            </Link>
                             <button className="btn btn-success btn-sm" onClick={() => handleApprove(article.id, 'Approved')}>
                               <FiCheck size={14} /> Approve
                             </button>
