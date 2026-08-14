@@ -1,17 +1,17 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { articlesApi, likesApi, bookmarksApi } from '../api'
 import { useAuth } from '../context/AuthContext'
 import CommentSection from '../components/CommentSection'
-import { FiHeart, FiBookmark, FiEdit, FiTrash2, FiArrowLeft, FiTag, FiUser, FiCalendar, FiClock } from 'react-icons/fi'
+import { FiThumbsUp, FiBookmark, FiEdit, FiTrash2, FiClock, FiCalendar, FiUser, FiArrowLeft, FiShield } from 'react-icons/fi'
 import toast from 'react-hot-toast'
 import './ArticleDetailPage.css'
-import '../components/CommentSection.css'
 
 export default function ArticleDetailPage() {
   const { id } = useParams()
-  const { user, isAdmin } = useAuth()
   const navigate = useNavigate()
+  const { user, isAdmin } = useAuth()
+
   const [article, setArticle] = useState(null)
   const [loading, setLoading] = useState(true)
   const [liked, setLiked] = useState(false)
@@ -19,127 +19,161 @@ export default function ArticleDetailPage() {
   const [bookmarked, setBookmarked] = useState(false)
 
   useEffect(() => {
-    articlesApi.getById(id).then(res => {
+    loadArticle()
+  }, [id])
+
+  const loadArticle = async () => {
+    setLoading(true)
+    try {
+      const res = await articlesApi.getById(id)
       setArticle(res.data)
       setLiked(res.data.isLikedByUser)
       setLikeCount(res.data.likeCount)
       setBookmarked(res.data.isBookmarkedByUser)
-    }).catch(() => {
+    } catch {
       toast.error('Article not found')
       navigate('/')
-    }).finally(() => setLoading(false))
-  }, [id])
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleLike = async () => {
     try {
-      await likesApi.toggle(id)
-      setLiked(v => !v)
-      setLikeCount(c => liked ? c - 1 : c + 1)
-    } catch { toast.error('Failed to toggle like') }
+      const res = await likesApi.toggle(id)
+      setLiked(res.data.liked)
+      setLikeCount(c => res.data.liked ? c + 1 : c - 1)
+    } catch {
+      toast.error('Failed to update like')
+    }
   }
 
   const handleBookmark = async () => {
     try {
-      await bookmarksApi.toggle(id)
-      setBookmarked(v => !v)
-      toast.success(bookmarked ? 'Removed from bookmarks' : 'Bookmarked!')
-    } catch { toast.error('Failed to update bookmark') }
+      const res = await bookmarksApi.toggle(id)
+      setBookmarked(res.data.bookmarked)
+      toast.success(res.data.bookmarked ? 'Saved to bookmarks!' : 'Removed from bookmarks')
+    } catch {
+      toast.error('Failed to update bookmark')
+    }
   }
 
   const handleDelete = async () => {
-    if (!confirm('Delete this article?')) return
+    if (!confirm('Are you sure you want to delete this article?')) return
     try {
       await articlesApi.delete(id)
       toast.success('Article deleted')
       navigate('/')
-    } catch { toast.error('Failed to delete') }
+    } catch {
+      toast.error('Failed to delete article')
+    }
   }
 
-  const formatDate = (d) => new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-  const readTime = (text) => Math.max(1, Math.ceil((text || '').split(' ').length / 200))
+  const formatDate = (dateStr) => {
+    if (!dateStr) return ''
+    return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  }
 
-  if (loading) return <div className="loading-spinner" style={{ marginTop: 80 }} />
+  const calculateReadTime = (text = '') => {
+    const words = text.trim().split(/\s+/).length
+    return Math.max(1, Math.ceil(words / 200))
+  }
 
+  // Simple Rich Text Formatter (Bold & Italic)
+  const renderFormattedContent = (content = '') => {
+    return content.split('\n\n').map((paragraph, idx) => {
+      // Convert **text** to <strong> and *text* to <em>
+      const formatted = paragraph
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+
+      return (
+        <p key={idx} dangerouslySetInnerHTML={{ __html: formatted }} />
+      )
+    })
+  }
+
+  if (loading) return <div className="loading-spinner" />
   if (!article) return null
 
-  const canEdit = user?.id === article.authorId || isAdmin
-  const statusColors = { Approved: 'badge-success', Pending: 'badge-warning', Rejected: 'badge-danger' }
+  const isAuthor = user?.id === article.authorId
 
   return (
     <div className="main-content">
       <div className="container-sm">
-        {/* Back */}
-        <Link to="/" className="back-link">
-          <FiArrowLeft size={16} /> Back to articles
-        </Link>
+        <button className="btn btn-ghost mb-4" onClick={() => navigate(-1)}>
+          <FiArrowLeft size={16} /> Back
+        </button>
 
-        {/* Article Header */}
-        <article className="article-detail">
-          <header className="article-detail-header">
-            <div className="flex items-center gap-2 flex-wrap">
-              {article.categoryName && (
-                <span className="badge badge-accent"><FiTag size={10} />{article.categoryName}</span>
-              )}
-              <span className={`badge ${statusColors[article.status] || 'badge-gray'}`}>{article.status}</span>
+        <div className="article-detail card">
+          <div className="article-detail-header">
+            <div className="flex items-center gap-2 mb-3">
+              {article.categoryName && <span className="badge badge-accent">{article.categoryName}</span>}
+              <span className={`badge ${article.status === 'Approved' ? 'badge-success' : 'badge-warning'}`}>
+                {article.status}
+              </span>
             </div>
 
             <h1 className="article-detail-title">{article.title}</h1>
 
-            {article.tags?.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-3">
-                {article.tags.map(t => <span key={t} className="badge badge-gray">{t}</span>)}
-              </div>
-            )}
-
             <div className="article-detail-meta">
-              <div className="flex items-center gap-2">
-                <div className="avatar avatar-lg">{article.authorName?.[0]?.toUpperCase()}</div>
-                <div>
-                  <div className="meta-author">{article.authorName}</div>
-                  <div className="meta-date">
-                    <FiCalendar size={12} /> {formatDate(article.createdAt)}
-                    <span className="meta-dot">·</span>
-                    <FiClock size={12} /> {readTime(article.content)} min read
-                  </div>
-                </div>
+              <div className="meta-item">
+                <FiUser size={14} /> <span>{article.authorName}</span>
               </div>
-
-              <div className="article-detail-actions">
-                <button className={`action-btn ${liked ? 'action-btn-liked' : ''}`} onClick={handleLike}>
-                  <FiHeart size={18} fill={liked ? 'currentColor' : 'none'} />
-                  <span>{likeCount}</span>
-                </button>
-                <button className={`action-btn ${bookmarked ? 'action-btn-bookmarked' : ''}`} onClick={handleBookmark}>
-                  <FiBookmark size={18} fill={bookmarked ? 'currentColor' : 'none'} />
-                </button>
-                {canEdit && (
-                  <>
-                    <Link to={`/articles/${id}/edit`} className="btn btn-secondary btn-sm">
-                      <FiEdit size={14} /> Edit
-                    </Link>
-                    <button className="btn btn-danger btn-sm" onClick={handleDelete}>
-                      <FiTrash2 size={14} /> Delete
-                    </button>
-                  </>
-                )}
+              <div className="meta-item">
+                <FiCalendar size={14} /> <span>{formatDate(article.createdAt)}</span>
+              </div>
+              <div className="meta-item">
+                <FiClock size={14} /> <span>{calculateReadTime(article.content)} min read</span>
               </div>
             </div>
-          </header>
 
-          <hr className="divider" />
-
-          {/* Content */}
-          <div className="article-content prose">
-            {article.content?.split('\n').map((para, i) =>
-              para.trim() ? <p key={i}>{para}</p> : <br key={i} />
+            {(isAuthor || isAdmin) && (
+              <div className="article-detail-actions flex gap-2 mt-4">
+                <Link to={`/articles/${id}/edit`} className="btn btn-secondary btn-sm">
+                  <FiEdit size={14} /> Edit
+                </Link>
+                <button className="btn btn-danger btn-sm" onClick={handleDelete}>
+                  <FiTrash2 size={14} /> Delete
+                </button>
+              </div>
             )}
           </div>
 
-          <hr className="divider" />
+          <div className="divider" />
 
-          {/* Comments */}
-          <CommentSection articleId={id} comments={article.comments || []} />
-        </article>
+          <div className="prose article-body">
+            {renderFormattedContent(article.content)}
+          </div>
+
+          {article.tags && article.tags.length > 0 && (
+            <div className="article-detail-tags">
+              <span className="tags-label">Tags:</span>
+              <div className="flex flex-wrap gap-1">
+                {article.tags.map(t => (
+                  <span key={t} className="badge badge-gray">#{t}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="divider" />
+
+          <div className="article-detail-footer">
+            <div className="flex items-center gap-3">
+              <button className={`btn ${liked ? 'btn-primary' : 'btn-secondary'}`} onClick={handleLike}>
+                <FiThumbsUp size={16} /> {liked ? 'Liked' : 'Like'} ({likeCount})
+              </button>
+              <button className={`btn ${bookmarked ? 'btn-primary' : 'btn-secondary'}`} onClick={handleBookmark}>
+                <FiBookmark size={16} /> {bookmarked ? 'Saved' : 'Save Bookmark'}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6">
+          <CommentSection articleId={id} comments={article.comments || []} onCommentAdded={loadArticle} />
+        </div>
       </div>
     </div>
   )

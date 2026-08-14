@@ -2,6 +2,7 @@ using KnowledgeVault.API.Data;
 using KnowledgeVault.API.DTOs;
 using KnowledgeVault.API.Services;
 using Microsoft.AspNetCore.Mvc;
+using AppUser = KnowledgeVault.API.Models.User;
 
 namespace KnowledgeVault.API.Controllers
 {
@@ -9,26 +10,27 @@ namespace KnowledgeVault.API.Controllers
     [Route("api/[controller]")]
     public class AuthController : ControllerBase
     {
-        private readonly DbService _db;
+        private readonly DbConnectionFactory _dbFactory;
         private readonly TokenService _tokenService;
 
-        public AuthController(DbService db, TokenService tokenService)
+        public AuthController(DbConnectionFactory dbFactory, TokenService tokenService)
         {
-            _db = db;
+            _dbFactory = dbFactory;
             _tokenService = tokenService;
         }
 
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterRequest req)
         {
-            var existingUser = await _db.GetUserByEmailAsync(req.Email);
+            using var conn = _dbFactory.CreateConnection();
+            var existingUser = await AppUser.GetByEmailAsync(conn, req.Email);
             if (existingUser != null)
                 return BadRequest(new { message = "Email already registered" });
 
             string role = string.Equals(req.Role, "Admin", StringComparison.OrdinalIgnoreCase) ? "Admin" : "Employee";
             string passwordHash = BCrypt.Net.BCrypt.HashPassword(req.Password);
 
-            await _db.CreateUserAsync(req.Username, req.Email, passwordHash, role);
+            await AppUser.CreateAsync(conn, req.Username, req.Email, passwordHash, role);
 
             return Ok(new { message = "Registration successful" });
         }
@@ -36,7 +38,8 @@ namespace KnowledgeVault.API.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest req)
         {
-            var user = await _db.GetUserByEmailAsync(req.Email);
+            using var conn = _dbFactory.CreateConnection();
+            var user = await AppUser.GetByEmailAsync(conn, req.Email);
             if (user == null)
                 return Unauthorized(new { message = "Invalid email or password" });
 
@@ -59,7 +62,7 @@ namespace KnowledgeVault.API.Controllers
                 {
                     isValidPassword = true;
                     string newHash = BCrypt.Net.BCrypt.HashPassword(req.Password);
-                    await _db.UpdateUserPasswordHashAsync(user.Id, newHash);
+                    await AppUser.UpdatePasswordHashAsync(conn, user.Id, newHash);
                 }
             }
 

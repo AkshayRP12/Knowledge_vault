@@ -1,8 +1,10 @@
 using System.Security.Claims;
 using KnowledgeVault.API.Data;
 using KnowledgeVault.API.DTOs;
+using KnowledgeVault.API.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using AppUser = KnowledgeVault.API.Models.User;
 
 namespace KnowledgeVault.API.Controllers
 {
@@ -11,13 +13,14 @@ namespace KnowledgeVault.API.Controllers
     [Authorize]
     public class CategoriesController : ControllerBase
     {
-        private readonly DbService _db;
-        public CategoriesController(DbService db) => _db = db;
+        private readonly DbConnectionFactory _dbFactory;
+        public CategoriesController(DbConnectionFactory dbFactory) => _dbFactory = dbFactory;
 
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
-            var categories = await _db.GetCategoriesAsync();
+            using var conn = _dbFactory.CreateConnection();
+            var categories = await CategoryDto.FetchAllAsync(conn);
             return Ok(categories);
         }
 
@@ -25,7 +28,8 @@ namespace KnowledgeVault.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Create([FromBody] CreateCategoryRequest req)
         {
-            var category = await _db.CreateCategoryAsync(req.Name, req.Description);
+            using var conn = _dbFactory.CreateConnection();
+            var category = await Category.CreateAsync(conn, req.Name, req.Description);
             return Ok(category);
         }
 
@@ -33,7 +37,8 @@ namespace KnowledgeVault.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(int id)
         {
-            await _db.DeleteCategoryAsync(id);
+            using var conn = _dbFactory.CreateConnection();
+            await Category.DeleteAsync(conn, id);
             return Ok(new { message = "Category deleted" });
         }
     }
@@ -43,8 +48,8 @@ namespace KnowledgeVault.API.Controllers
     [Authorize]
     public class CommentsController : ControllerBase
     {
-        private readonly DbService _db;
-        public CommentsController(DbService db) => _db = db;
+        private readonly DbConnectionFactory _dbFactory;
+        public CommentsController(DbConnectionFactory dbFactory) => _dbFactory = dbFactory;
 
         private int GetUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
@@ -52,14 +57,16 @@ namespace KnowledgeVault.API.Controllers
         public async Task<IActionResult> Create(int articleId, [FromBody] CreateCommentRequest req)
         {
             var userId = GetUserId();
-            var comment = await _db.CreateCommentAsync(articleId, userId, req.Content);
+            using var conn = _dbFactory.CreateConnection();
+            var comment = await Comment.CreateAsync(conn, articleId, userId, req.Content);
             return Ok(comment);
         }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int articleId, int id)
         {
-            await _db.DeleteCommentAsync(id);
+            using var conn = _dbFactory.CreateConnection();
+            await Comment.DeleteAsync(conn, id);
             return Ok(new { message = "Comment deleted" });
         }
     }
@@ -69,14 +76,15 @@ namespace KnowledgeVault.API.Controllers
     [Authorize]
     public class LikesController : ControllerBase
     {
-        private readonly DbService _db;
-        public LikesController(DbService db) => _db = db;
+        private readonly DbConnectionFactory _dbFactory;
+        public LikesController(DbConnectionFactory dbFactory) => _dbFactory = dbFactory;
 
         [HttpPost]
         public async Task<IActionResult> Toggle(int articleId)
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-            bool isLiked = await _db.ToggleLikeAsync(articleId, userId);
+            using var conn = _dbFactory.CreateConnection();
+            bool isLiked = await Like.ToggleAsync(conn, articleId, userId);
             return Ok(new { liked = isLiked });
         }
     }
@@ -86,8 +94,8 @@ namespace KnowledgeVault.API.Controllers
     [Authorize]
     public class BookmarksController : ControllerBase
     {
-        private readonly DbService _db;
-        public BookmarksController(DbService db) => _db = db;
+        private readonly DbConnectionFactory _dbFactory;
+        public BookmarksController(DbConnectionFactory dbFactory) => _dbFactory = dbFactory;
 
         private int GetUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
@@ -95,7 +103,8 @@ namespace KnowledgeVault.API.Controllers
         public async Task<IActionResult> GetAll()
         {
             var userId = GetUserId();
-            var bookmarks = await _db.GetUserBookmarksAsync(userId);
+            using var conn = _dbFactory.CreateConnection();
+            var bookmarks = await BookmarkDto.FetchUserBookmarksAsync(conn, userId);
             return Ok(bookmarks);
         }
 
@@ -103,7 +112,8 @@ namespace KnowledgeVault.API.Controllers
         public async Task<IActionResult> Toggle(int articleId)
         {
             var userId = GetUserId();
-            bool isBookmarked = await _db.ToggleBookmarkAsync(articleId, userId);
+            using var conn = _dbFactory.CreateConnection();
+            bool isBookmarked = await Bookmark.ToggleAsync(conn, articleId, userId);
             return Ok(new { bookmarked = isBookmarked });
         }
     }
@@ -113,20 +123,22 @@ namespace KnowledgeVault.API.Controllers
     [Authorize(Roles = "Admin")]
     public class UsersController : ControllerBase
     {
-        private readonly DbService _db;
-        public UsersController(DbService db) => _db = db;
+        private readonly DbConnectionFactory _dbFactory;
+        public UsersController(DbConnectionFactory dbFactory) => _dbFactory = dbFactory;
 
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
-            var users = await _db.GetAllUsersAsync();
+            using var conn = _dbFactory.CreateConnection();
+            var users = await UserDto.FetchAllAsync(conn);
             return Ok(users);
         }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            await _db.DeleteUserAsync(id);
+            using var conn = _dbFactory.CreateConnection();
+            await AppUser.DeleteAsync(conn, id);
             return Ok(new { message = "User removed" });
         }
     }

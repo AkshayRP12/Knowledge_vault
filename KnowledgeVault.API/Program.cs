@@ -7,8 +7,8 @@ using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Register DbService (Raw Inline T-SQL with ADO.NET SqlClient)
-builder.Services.AddSingleton<DbService>();
+// Register DbConnectionFactory for Model Active Record queries
+builder.Services.AddSingleton<DbConnectionFactory>();
 
 // Register TokenService
 builder.Services.AddScoped<TokenService>();
@@ -37,7 +37,7 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Knowledge Vault API (Inline T-SQL)", Version = "v1" });
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Knowledge Vault API (Active Record T-SQL)", Version = "v1" });
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Description = "JWT Authorization header using the Bearer scheme. Enter 'Bearer' [space] and then your token.",

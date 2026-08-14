@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using KnowledgeVault.API.Data;
 using KnowledgeVault.API.DTOs;
+using KnowledgeVault.API.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,11 +12,11 @@ namespace KnowledgeVault.API.Controllers
     [Authorize]
     public class ArticlesController : ControllerBase
     {
-        private readonly DbService _db;
+        private readonly DbConnectionFactory _dbFactory;
 
-        public ArticlesController(DbService db)
+        public ArticlesController(DbConnectionFactory dbFactory)
         {
-            _db = db;
+            _dbFactory = dbFactory;
         }
 
         private int GetUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -24,7 +25,8 @@ namespace KnowledgeVault.API.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
-            var articles = await _db.GetArticlesByStatusAsync("Approved");
+            using var conn = _dbFactory.CreateConnection();
+            var articles = await ArticleListDto.FetchByStatusAsync(conn, "Approved");
             return Ok(articles);
         }
 
@@ -32,7 +34,8 @@ namespace KnowledgeVault.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetPending()
         {
-            var articles = await _db.GetArticlesByStatusAsync("Pending");
+            using var conn = _dbFactory.CreateConnection();
+            var articles = await ArticleListDto.FetchByStatusAsync(conn, "Pending");
             return Ok(articles);
         }
 
@@ -40,7 +43,8 @@ namespace KnowledgeVault.API.Controllers
         public async Task<IActionResult> GetById(int id)
         {
             var userId = GetUserId();
-            var article = await _db.GetArticleByIdAsync(id, userId);
+            using var conn = _dbFactory.CreateConnection();
+            var article = await ArticleDetailDto.FetchByIdAsync(conn, id, userId);
             if (article == null) return NotFound();
             return Ok(article);
         }
@@ -51,7 +55,8 @@ namespace KnowledgeVault.API.Controllers
             var userId = GetUserId();
             string status = IsAdmin() ? "Approved" : "Pending";
 
-            int articleId = await _db.CreateArticleAsync(userId, req.Title, req.Content, req.CategoryId, status, req.Tags);
+            using var conn = _dbFactory.CreateConnection();
+            int articleId = await Article.CreateAsync(conn, userId, req.Title, req.Content, req.CategoryId, status, req.Tags);
 
             return CreatedAtAction(nameof(GetById), new { id = articleId }, new { id = articleId, status });
         }
@@ -60,12 +65,13 @@ namespace KnowledgeVault.API.Controllers
         public async Task<IActionResult> Update(int id, [FromBody] UpdateArticleRequest req)
         {
             var userId = GetUserId();
-            var article = await _db.GetArticleByIdAsync(id, userId);
+            using var conn = _dbFactory.CreateConnection();
+            var article = await ArticleDetailDto.FetchByIdAsync(conn, id, userId);
             if (article == null) return NotFound();
 
             if (article.AuthorId != userId && !IsAdmin()) return Forbid();
 
-            await _db.UpdateArticleAsync(id, req.Title, req.Content, req.CategoryId, req.Tags);
+            await Article.UpdateAsync(conn, id, req.Title, req.Content, req.CategoryId, req.Tags);
             return Ok(new { message = "Article updated" });
         }
 
@@ -73,12 +79,13 @@ namespace KnowledgeVault.API.Controllers
         public async Task<IActionResult> Delete(int id)
         {
             var userId = GetUserId();
-            var article = await _db.GetArticleByIdAsync(id, userId);
+            using var conn = _dbFactory.CreateConnection();
+            var article = await ArticleDetailDto.FetchByIdAsync(conn, id, userId);
             if (article == null) return NotFound();
 
             if (article.AuthorId != userId && !IsAdmin()) return Forbid();
 
-            await _db.DeleteArticleAsync(id);
+            await Article.DeleteAsync(conn, id);
             return Ok(new { message = "Article deleted" });
         }
 
@@ -87,10 +94,11 @@ namespace KnowledgeVault.API.Controllers
         public async Task<IActionResult> Approve(int id, [FromBody] ApproveRequest req)
         {
             var userId = GetUserId();
-            var article = await _db.GetArticleByIdAsync(id, userId);
+            using var conn = _dbFactory.CreateConnection();
+            var article = await ArticleDetailDto.FetchByIdAsync(conn, id, userId);
             if (article == null) return NotFound();
 
-            await _db.ApproveArticleAsync(id, req.Status);
+            await Article.ApproveAsync(conn, id, req.Status);
             return Ok(new { message = $"Article status updated to {req.Status}" });
         }
     }
