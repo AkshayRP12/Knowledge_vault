@@ -6,30 +6,31 @@
 [![SQL Server](https://img.shields.io/badge/Microsoft%20SQL%20Server-2022-CC292B?logo=microsoftsqlserver&logoColor=white)](https://www.microsoft.com/en-us/sql-server)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-**Knowledge Vault** is a full-stack, enterprise knowledge management and collaborative documentation platform designed for teams to create, review, categorize, and discover internal knowledge. Built with a **React** single-page frontend and a high-performance **ASP.NET Core 8 Web API** backend utilizing pure **ADO.NET** parameterized T-SQL queries with the Active Record and DTO patterns.
+**Knowledge Vault** is a full-stack enterprise knowledge management and collaborative documentation platform designed for teams to create, review, categorize, and discover internal knowledge. Built with a **React** single-page frontend and a high-performance **ASP.NET Core 8 Web API** backend utilizing pure **ADO.NET** parameterized T-SQL queries with the Active Record and Data Transfer Object (DTO) patterns.
 
 ---
 
-## 📌 Table of Contents
+## Table of Contents
 
-- [Architectural Overview](#-architectural-overview)
-- [Tech Stack](#-tech-stack)
-- [Key Features](#-key-features)
-- [Database Schema (3NF)](#-database-schema-3nf)
-- [Getting Started](#-getting-started)
+- [Architectural Overview](#architectural-overview)
+- [Tech Stack](#tech-stack)
+- [Key Features](#key-features)
+- [Database Schema (3NF)](#database-schema-3nf)
+- [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
   - [Database Setup](#1-database-setup)
   - [Backend Setup](#2-backend-setup)
   - [Frontend Setup](#3-frontend-setup)
-- [API Endpoints](#-api-endpoints)
-- [Role-Based Access Control](#-role-based-access-control)
-- [Security Features](#-security-features)
-- [Project Structure](#-project-structure)
-- [Troubleshooting & FAQ](#-troubleshooting--faq)
+- [Default Credentials](#default-credentials)
+- [API Endpoints](#api-endpoints)
+- [Role-Based Access Control](#role-based-access-control)
+- [Security Features](#security-features)
+- [Project Structure](#project-structure)
+- [Troubleshooting & FAQ](#troubleshooting--faq)
 
 ---
 
-## 🏗 Architectural Overview
+## Architectural Overview
 
 Knowledge Vault employs a multi-tiered, decoupled architecture engineered for raw performance, auditability, and clear separation of concerns:
 
@@ -66,12 +67,12 @@ Knowledge Vault employs a multi-tiered, decoupled architecture engineered for ra
 
 ---
 
-## 💻 Tech Stack
+## Tech Stack
 
 ### Frontend
 - **Framework**: React 18 (SPA) with Vite
 - **Routing**: React Router DOM (v6)
-- **Styling**: Vanilla CSS Design System with responsive tokens
+- **Styling**: Vanilla CSS Design System with responsive design tokens
 - **Icons**: React Icons (Feather Icons)
 - **Notifications**: React Hot Toast
 - **Rich Text**: Native `contentEditable` WYSIWYG formatting engine
@@ -89,20 +90,20 @@ Knowledge Vault employs a multi-tiered, decoupled architecture engineered for ra
 
 ---
 
-## ✨ Key Features
+## Key Features
 
-- 📝 **WYSIWYG Rich Text Authoring**: Write articles with inline visual formatting (bold, italics, headings, lists) without Markdown syntax complexity.
-- 🛡 **Role-Based Article Moderation**:
+- **WYSIWYG Rich Text Authoring**: Write articles with inline visual formatting (bold, italics, headings, lists) without Markdown syntax complexity.
+- **Role-Based Article Moderation**:
   - **Employees**: Submit drafts that enter a `Pending` state for administrative review.
   - **Admins**: Review submissions, read full contexts, and approve or reject articles with instant status updates.
-- 🔍 **Instant Search & Tag Filtering**: Real-time article lookup across titles and bodies with category filtering and tag aggregation.
-- 💬 **Interactive Social Features**: Likes, threaded comments, and personal bookmarking for later reference.
-- 📊 **Administrative Dashboard**: Real-time metric tracking, user access control, and dynamic category creation/deletion.
-- ⚡ **Pure ADO.NET Performance**: Direct T-SQL execution eliminating ORM reflection and change-tracker overhead.
+- **Instant Search & Tag Filtering**: Real-time article lookup across titles and bodies with category filtering and tag aggregation.
+- **Interactive Social Features**: Likes, threaded comments, and personal bookmarking for later reference.
+- **Administrative Dashboard**: Real-time metric tracking, user access control, and dynamic category creation/deletion.
+- **Pure ADO.NET Performance**: Direct T-SQL execution eliminating ORM reflection and change-tracker overhead.
 
 ---
 
-## 🗄 Database Schema (3NF)
+## Database Schema (3NF)
 
 The database schema is defined in [`schema.sql`](file:///z:/excel/schema.sql) and consists of 8 core tables:
 
@@ -117,7 +118,7 @@ The database schema is defined in [`schema.sql`](file:///z:/excel/schema.sql) an
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 - [.NET 8.0 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
@@ -180,7 +181,7 @@ The database schema is defined in [`schema.sql`](file:///z:/excel/schema.sql) an
 
 ---
 
-## 🔐 Default Credentials
+## Default Credentials
 
 | Role | Email | Password |
 |---|---|---|
@@ -191,7 +192,7 @@ The database schema is defined in [`schema.sql`](file:///z:/excel/schema.sql) an
 
 ---
 
-## 📡 API Endpoints
+## API Endpoints
 
 ### Authentication (`/api/auth`)
 - `POST /api/auth/register` — Register a new account (returns JWT).
@@ -223,7 +224,7 @@ The database schema is defined in [`schema.sql`](file:///z:/excel/schema.sql) an
 
 ---
 
-## 🛡 Security Features
+## Security Features
 
 - **SQL Injection Immunization**: All SQL queries utilize ADO.NET parameterized queries via `SqlCommand.Parameters.AddWithValue()`. User inputs are never concatenated into command text.
 - **Cryptographic Password Security**: Passwords are never stored in plain text. Salting and hashing are handled by industry-standard BCrypt.
@@ -232,7 +233,7 @@ The database schema is defined in [`schema.sql`](file:///z:/excel/schema.sql) an
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 Knowledge_vault/
@@ -262,7 +263,7 @@ Knowledge_vault/
 
 ---
 
-## ❓ Troubleshooting & FAQ
+## Troubleshooting & FAQ
 
 **Q: Why do I see a SQL connection error on startup?**  
 **A:** Ensure SQL Server is running and the `DefaultConnection` string in `appsettings.json` points to your correct SQL instance name (e.g., `.\SQLEXPRESS` or `(localdb)\mssqllocaldb`).
@@ -272,6 +273,6 @@ Knowledge_vault/
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
